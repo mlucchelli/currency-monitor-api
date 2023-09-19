@@ -10,6 +10,10 @@ app.listen(PORT, () =>
   console.log(`The Books API is running on: http://localhost:${PORT}.`)
 );
 
+app.get('/health', (request, response) => {
+    response.sendStatus(200);
+  });
+
 app.get('/current', async (request, response) => {
   try {
     const response1 = await axios.get('https://api.bluelytics.com.ar/v2/latest');
