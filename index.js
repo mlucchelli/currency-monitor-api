@@ -49,9 +49,13 @@ app.get('/latest', async (request, response) => {
 });
 
 
-app.get('/historic', async (request, response) => {
+app.get('/historic/:days', async (request, response) => {
     try {
-      const response2 = await axios.get('https://api.bluelytics.com.ar/v2/evolution.json?days=90');
+      const { days } = request.params;
+      
+      const apiUrl = `https://api.bluelytics.com.ar/v2/evolution.json?days=${days}`;
+      
+      const response2 = await axios.get(apiUrl);
       const data2 = response2.data;
   
       const historicalData = {
@@ -73,10 +77,11 @@ app.get('/historic', async (request, response) => {
           historicalData.dolar_oficial.push(mappedEntry);
         }
       }
-    response.send(historicalData);
+      
+      response.send(historicalData);
     } catch (error) {
-      console.error('Error al obtener datos históricos de la API:', error);
-      response.status(500).send('Error al obtener datos históricos');
+      console.error('Error:', error);
+      response.status(500).send('Request Failed');
     }
   });
-    
+  
