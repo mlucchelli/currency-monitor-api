@@ -14,7 +14,7 @@ app.get('/health', (request, response) => {
     response.sendStatus(200);
   });
 
-app.get('/current', async (request, response) => {
+app.get('/latest', async (request, response) => {
   try {
     const response1 = await axios.get('https://api.bluelytics.com.ar/v2/latest');
     const data1 = response1.data;
