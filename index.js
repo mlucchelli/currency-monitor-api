@@ -7,6 +7,7 @@ const app = express();
 let currency_data = {};
 const currencies = ['EUR', 'GBP' ,'JPY']
 const cryptos = ['BTC', 'ETH']
+const CURRENCIES_ENABLED = false
 
 app.listen(PORT, () =>
   console.log(`The Books API is running on: http://localhost:${PORT}.`)
@@ -18,27 +19,29 @@ app.get('/health', (request, response) => {
 
 app.get('/latest', async (request, response) => {
   try {
-    const response1 = await axios.get('https://api.bluelytics.com.ar/v2/latest');
-    const data1 = response1.data;
+    const dolarResponse = await axios.get('https://api.bluelytics.com.ar/v2/latest');
+    const dolarJson = dolarResponse.data;
 
-    const propertyMapping1 = {
+    const dolarTypes = {
       "oficial": "dolar_oficial",
       "blue": "dolar_blue"
     };
 
     const dolarData= {};
+    const internationalCurrenciesData = {};
+    const CryptoData = {};
 
-    for (const apiProperty in propertyMapping1) {
-      if (data1.hasOwnProperty(apiProperty)) {
-        dolarData[propertyMapping1[apiProperty]] = {
-          "value_avg": data1[apiProperty].value_avg.toFixed(2),
-          "value_sell": data1[apiProperty].value_sell.toFixed(2),
-          "value_buy": data1[apiProperty].value_buy.toFixed(2),
+    for (const dolarType in dolarTypes) {
+      if (dolarJson.hasOwnProperty(dolarType)) {
+        dolarData[dolarTypes[dolarType]] = {
+          "value_avg": dolarJson[dolarType].value_avg.toFixed(2),
+          "value_sell": dolarJson[dolarType].value_sell.toFixed(2),
+          "value_buy": dolarJson[dolarType].value_buy.toFixed(2),
         };
       }
     }
 
-    const internationalCurrenciesData = {};
+    if(CURRENCIES_ENABLED){
     try {
         for (const currency of currencies) {
 
@@ -57,10 +60,9 @@ app.get('/latest', async (request, response) => {
         }
       }
       catch (error) {
-        console.error(`Error fetching data for ${currency}: ${error.message}`);
+        console.error(`Error fetching data from exchangerate: ${error.message}`);
       }
 
-      const CryptoData = {};
       try {
           for (const crypto of cryptos) {
             const response = await axios.get(`https://api.exchangerate.host/convert?from=${crypto}&to=USD`);
@@ -80,6 +82,7 @@ app.get('/latest', async (request, response) => {
         catch (error) {
           console.error(`Error fetching data for ${crypto}: ${error.message}`);
         }
+      }
 
     currency_data = {
       ...dolarData,
@@ -90,8 +93,8 @@ app.get('/latest', async (request, response) => {
     console.log(JSON.stringify(currency_data, null, 2));
     response.send(currency_data);
   } catch (error) {
-    console.error('Error al hacer la solicitud a la API:', error);
-    response.status(500).send('Error al obtener los datos de las APIs');
+    console.error('API ERROR', error);
+    response.status(500).send('ERROR requesting exchangerate APIs');
   }
 });
 
@@ -104,6 +107,8 @@ app.get('/historic/:days', async (request, response) => {
 
       const dolarHistoricResponse = await axios.get(`https://api.bluelytics.com.ar/v2/evolution.json?days=${days*2}`);
       const data1 = dolarHistoricResponse.data;
+      const internationalCurrenciesData = {};
+      const cryptoHistoricData = {};
 
       const dolarHistoricData = {
         dolar_blue: [],
@@ -125,67 +130,68 @@ app.get('/historic/:days', async (request, response) => {
         }
       }
 
-      const internationalCurrenciesData = {};
+      if(CURRENCIES_ENABLED){
       currencies_url = ``
-      try {
-        for (const currency of currencies) {
-          currencies_url = `https://api.exchangerate.host/timeseries?start_date=${formattedPastDate}&end_date=${formattedPresentDate}&symbols=${currency}&base=USD`
+        try {
+          for (const currency of currencies) {
+            currencies_url = `https://api.exchangerate.host/timeseries?start_date=${formattedPastDate}&end_date=${formattedPresentDate}&symbols=${currency}&base=USD`
   
-          const response = await axios.get(currencies_url);
-          const data = response.data;
+            const response = await axios.get(currencies_url);
+            const data = response.data;
 
-          if (data.success && data.timeseries && data.rates) {
-            const rates = data.rates;
-            const currencyData = [];
+            if (data.success && data.timeseries && data.rates) {
+              const rates = data.rates;
+              const currencyData = [];
 
-            for (const date in rates) {
-              if (rates.hasOwnProperty(date)) {
-                const valueBuy = rates[date][currency] || 0;
-                currencyData.push({
-                  date: date,
-                  value_buy: valueBuy.toFixed(3),
-                });
+              for (const date in rates) {
+                if (rates.hasOwnProperty(date)) {
+                  const valueBuy = rates[date][currency] || 0;
+                  currencyData.push({
+                    date: date,
+                    value_buy: valueBuy.toFixed(3),
+                  });
+                }
               }
-            }
 
-            internationalCurrenciesData[currency] = currencyData;
-          } else {
+              internationalCurrenciesData[currency] = currencyData;
+            } else {
             console.error(`Failed to fetch data for ${currency}`);
-          }
-        }
-      } catch (error) {
-        console.error(`Error fetching data from ${currencies_url}: ${error.message}`);
-      }
-
-      const cryptoHistoricData = {};
-
-      try {
-        for (const crypto of cryptos) {
-          const response = await axios.get(`https://api.exchangerate.host/timeseries?start_date=${formattedPastDate}&end_date=${formattedPresentDate}&base=${crypto}&symbols=USD`);
-          const data = response.data;
-      
-          if (data.success && data.timeseries && data.rates) {
-            const rates = data.rates;
-            const cryptoData = [];
-
-            for (const date in rates) {
-              if (rates.hasOwnProperty(date)) {
-                const valueBuy = rates[date]["USD"] || 0;
-                cryptoData.push({
-                  date: date,
-                  value_buy: valueBuy.toFixed(3),
-                });
-              }
             }
-
-            cryptoHistoricData[crypto] = cryptoData;
-          } else {
-            console.error(`Failed to fetch data for ${crypto}`);
           }
+        } catch (error) {
+        console.error(`Error fetching data from ${currencies_url}: ${error.message}`);
         }
-      } catch (error) {
-        console.error(`Error fetching data for ${crypto}: ${error.message}`);
-      }
+
+       try {
+          for (const crypto of cryptos) {
+           const response = await axios.get(`https://api.exchangerate.host/timeseries?start_date=${formattedPastDate}&end_date=${formattedPresentDate}&base=${crypto}&symbols=USD`);
+            const data = response.data;
+      
+            if (data.success && data.timeseries && data.rates) {
+             const rates = data.rates;
+              const cryptoData = [];
+
+             for (const date in rates) {
+                if (rates.hasOwnProperty(date)) {
+                  const valueBuy = rates[date]["USD"] || 0;
+                  cryptoData.push({
+                    date: date,
+                  value_buy: valueBuy.toFixed(3),
+                  });
+                }
+              }
+
+              cryptoHistoricData[crypto] = cryptoData;
+           } else {
+             console.error(`Failed to fetch data for ${crypto}`);
+           }
+         }
+       } catch (error) {
+         console.error(`Error fetching data for ${crypto}: ${error.message}`);
+       }
+     }
+
+
 
       currency_data = {
         ...dolarHistoricData,
