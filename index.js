@@ -7,7 +7,7 @@ const app = express();
 let currency_data = {};
 const currencies = ['EUR', 'GBP' ,'JPY']
 const cryptos = ['BTC', 'ETH']
-const CURRENCIES_ENABLED = false
+const CURRENCIES_ENABLED = true
 
 app.listen(PORT, () =>
   console.log(`The Books API is running on: http://localhost:${PORT}.`)
