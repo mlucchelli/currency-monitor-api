@@ -23,8 +23,8 @@ app.get('/latest', async (request, response) => {
     const dolarJson = dolarResponse.data;
 
     const dolarTypes = {
-      "oficial": "dolar_oficial",
-      "blue": "dolar_blue"
+      "oficial": "USD",
+      "blue": "USDb"
     };
 
     const dolarData= {};
@@ -106,32 +106,45 @@ app.get('/historic/:days', async (request, response) => {
       const formattedPresentDate = new Date(new Date().setDate(new Date().getDate())).toISOString().split('T')[0];
 
       const dolarHistoricResponse = await axios.get(`https://api.bluelytics.com.ar/v2/evolution.json?days=${days*2}`);
-      const data1 = dolarHistoricResponse.data;
+      const dolarHistoricoJson = dolarHistoricResponse.data;
       const internationalCurrenciesData = {};
       const cryptoHistoricData = {};
 
       const dolarHistoricData = {
-        dolar_blue: [],
-        dolar_oficial: [],
+        USDb: [],
+        USD: [],
       };
 
-      for (const entry of data1) {
-        const mappedEntry = {
-          date: entry.date,
-          source: entry.source,
-          value_sell: entry.value_sell,
-          value_buy: entry.value_buy,
+      for (const dolarData of dolarHistoricoJson) {
+        const dolar = {
+          date: dolarData.date,
+          source: dolarData.source,
+          value_sell: dolarData.value_sell,
+          value_buy: dolarData.value_buy,
         };
 
-        if (entry.source === 'Blue') {
-            dolarHistoricData.dolar_blue.push(mappedEntry);
-        } else if (entry.source === 'Oficial') {
-            dolarHistoricData.dolar_oficial.push(mappedEntry);
+        if (dolarData.source === 'Blue') {
+            dolarHistoricData.USDb.push(dolar);
+        } else if (dolarData.source === 'Oficial') {
+            dolarHistoricData.USD.push(dolar);
         }
       }
 
+      // reverse sort the results this API put newst values at the begin
+      dolarHistoricData.USDb.sort((a, b) => {
+        const dateA = new Date(a.date);
+        const dateB = new Date(b.date);
+        return dateA - dateB;
+    });
+
+      dolarHistoricData.USD.sort((a, b) => {
+      const dateA = new Date(a.date);
+      const dateB = new Date(b.date);
+      return dateA - dateB;
+    });
+
       if(CURRENCIES_ENABLED){
-      currencies_url = ``
+      var currencies_url = ``
         try {
           for (const currency of currencies) {
             currencies_url = `https://api.exchangerate.host/timeseries?start_date=${formattedPastDate}&end_date=${formattedPresentDate}&symbols=${currency}&base=USD`
@@ -190,8 +203,6 @@ app.get('/historic/:days', async (request, response) => {
          console.error(`Error fetching data for ${crypto}: ${error.message}`);
        }
      }
-
-
 
       currency_data = {
         ...dolarHistoricData,
