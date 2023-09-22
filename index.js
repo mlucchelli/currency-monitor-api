@@ -126,10 +126,12 @@ app.get('/historic/:days', async (request, response) => {
       }
 
       const internationalCurrenciesData = {};
-
+      currencies_url = ``
       try {
         for (const currency of currencies) {
-          const response = await axios.get(`https://api.exchangerate.host/timeseries?start_date=${formattedPastDate}&end_date=${formattedPresentDate}&symbols=${currency}&base=USD`);
+          currencies_url = `https://api.exchangerate.host/timeseries?start_date=${formattedPastDate}&end_date=${formattedPresentDate}&symbols=${currency}&base=USD`
+  
+          const response = await axios.get(currencies_url);
           const data = response.data;
 
           if (data.success && data.timeseries && data.rates) {
@@ -152,7 +154,7 @@ app.get('/historic/:days', async (request, response) => {
           }
         }
       } catch (error) {
-        console.error(`Error fetching data for ${currency}: ${error.message}`);
+        console.error(`Error fetching data from ${currencies_url}: ${error.message}`);
       }
 
       const cryptoHistoricData = {};
