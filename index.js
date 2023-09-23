@@ -9,6 +9,16 @@ const currencies = ['EUR', 'GBP' ,'JPY']
 const cryptos = ['BTC', 'ETH']
 const CURRENCIES_ENABLED = true
 
+const color_currencies = {
+  "USD": "0,153,0",
+  "USDb": "0,128,255",
+  "EUR": "255,102,255",
+  "GBP": "153,0,76",
+  "JPY": "204,0,0",
+  "BTC": "247,147,26",
+  "ETH": "178,102,255"
+}
+
 app.listen(PORT, () =>
   console.log(`The Books API is running on: http://localhost:${PORT}.`)
 );
@@ -37,6 +47,7 @@ app.get('/latest', async (request, response) => {
           "value_avg": dolarJson[dolarType].value_avg.toFixed(2),
           "value_sell": dolarJson[dolarType].value_sell.toFixed(2),
           "value_buy": dolarJson[dolarType].value_buy.toFixed(2),
+          "color": color_currencies[dolarTypes[dolarType]]
         };
       }
     }
@@ -51,6 +62,7 @@ app.get('/latest', async (request, response) => {
           if (data.success) {
             internationalCurrenciesData[currency] = {
                 "value_avg": data.result.toFixed(2),
+                "color": color_currencies[currency]
                 //"value_sell": data1[apiProperty].value_sell.toFixed(2),
                 //"value_buy": data1[apiProperty].value_buy.toFixed(2),
               };
@@ -71,6 +83,7 @@ app.get('/latest', async (request, response) => {
             if (data.success) {
                 CryptoData[crypto] = {
                   "value_avg": data.result.toFixed(2),
+                  "color": color_currencies[crypto]
                   //"value_sell": data1[apiProperty].value_sell.toFixed(2),
                   //"value_buy": data1[apiProperty].value_buy.toFixed(2),
                 };
