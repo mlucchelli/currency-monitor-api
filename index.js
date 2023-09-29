@@ -5,7 +5,7 @@ const PORT = 3000;
 const app = express();
 
 let currency_data = {};
-const currencies = ['EUR', 'GBP' ,'JPY']
+const currencies = ['EUR', 'GBP' ,'JPY','CAD']
 const cryptos = ['BTC', 'ETH']
 const CURRENCIES_ENABLED = true
 
@@ -15,6 +15,7 @@ const color_currencies = {
   "EUR": "255,102,255",
   "GBP": "153,0,76",
   "JPY": "204,0,0",
+  "CAD": "204,0,0",
   "BTC": "247,147,26",
   "ETH": "178,102,255"
 }
