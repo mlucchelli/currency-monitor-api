@@ -1,13 +1,24 @@
 import express from 'express';
 import axios from 'axios';
+import { config } from 'dotenv';
+import moment from 'moment';
+
+config();
 
 const PORT = 3000;
 const app = express();
 
 let currency_data = {};
-const currencies = ['EUR', 'GBP' ,'JPY','CAD']
+const currencies = ['EUR', 'GBP']
 const cryptos = ['BTC', 'ETH']
 const CURRENCIES_ENABLED = true
+const binance_config = {
+  headers: {
+    'X-MBX-APIKEY': process.env.BINANCE_API_KEY,
+    'Accept': 'application/json'
+  },
+};
+
 
 const color_currencies = {
   "USD": "0,153,0",
@@ -21,7 +32,7 @@ const color_currencies = {
 }
 
 app.listen(PORT, () =>
-  console.log(`The Books API is running on: http://localhost:${PORT}.`)
+  console.log(`The Currency Monitor is running on: http://localhost:${PORT}.`)
 );
 
 app.get('/health', (request, response) => {
@@ -57,15 +68,13 @@ app.get('/latest', async (request, response) => {
     try {
         for (const currency of currencies) {
 
-          const response = await axios.get(`https://api.exchangerate.host/convert?from=USD&to=${currency}`);
-          const data = response.data;
-    
-          if (data.success) {
+          let url = `https://api.binance.com/api/v3/ticker/price?symbol=${currency}USDT`
+          console.log(url, binance_config)
+          const response = await axios.get(url);
+          if (response.status == 200) {
             internationalCurrenciesData[currency] = {
-                "value_avg": data.result.toFixed(2),
+                "value_avg": Number(response.data.price).toFixed(2),
                 "color": color_currencies[currency]
-                //"value_sell": data1[apiProperty].value_sell.toFixed(2),
-                //"value_buy": data1[apiProperty].value_buy.toFixed(2),
               };
           } else {
             console.error(`Failed to fetch data for ${currency}`);
@@ -73,20 +82,17 @@ app.get('/latest', async (request, response) => {
         }
       }
       catch (error) {
-        console.error(`Error fetching data from exchangerate: ${error.message}`);
+        console.error(`Error fetching data from Binance: ${error.message}`);
       }
 
       try {
           for (const crypto of cryptos) {
-            const response = await axios.get(`https://api.exchangerate.host/convert?from=${crypto}&to=USD`);
-            const data = response.data;
-
-            if (data.success) {
+            let url = `https://api.binance.com/api/v3/ticker/price?symbol=${crypto}USDT`
+            const response = await axios.get(url, binance_config);
+            if (response.status == 200) {
                 CryptoData[crypto] = {
-                  "value_avg": data.result.toFixed(2),
+                  "value_avg": Number(response.data.price).toFixed(2),
                   "color": color_currencies[crypto]
-                  //"value_sell": data1[apiProperty].value_sell.toFixed(2),
-                  //"value_buy": data1[apiProperty].value_buy.toFixed(2),
                 };
             } else {
               console.error(`Failed to fetch data for ${crypto}`);
@@ -94,7 +100,7 @@ app.get('/latest', async (request, response) => {
           }
         }
         catch (error) {
-          console.error(`Error fetching data for ${crypto}: ${error.message}`);
+          console.error(`Error fetching data from Binance: ${error.message}`);
         }
       }
 
@@ -118,6 +124,8 @@ app.get('/historic/:days', async (request, response) => {
       const { days } = request.params;
       const formattedPastDate = new Date(new Date().setDate(new Date().getDate() - days)).toISOString().split('T')[0];
       const formattedPresentDate = new Date(new Date().setDate(new Date().getDate())).toISOString().split('T')[0];
+      const startTime = moment().subtract(days, 'days').unix() * 1000;
+      const endTime = moment().unix() * 1000;
 
       const dolarHistoricResponse = await axios.get(`https://api.bluelytics.com.ar/v2/evolution.json?days=${days*2}`);
       const dolarHistoricoJson = dolarHistoricResponse.data;
@@ -157,55 +165,45 @@ app.get('/historic/:days', async (request, response) => {
       return dateA - dateB;
     });
 
-      if(CURRENCIES_ENABLED){
-      var currencies_url = ``
-        try {
+    try {
           for (const currency of currencies) {
-            currencies_url = `https://api.exchangerate.host/timeseries?start_date=${formattedPastDate}&end_date=${formattedPresentDate}&symbols=${currency}&base=USD`
-  
-            const response = await axios.get(currencies_url);
+            let url = `https://api.binance.com/api/v3/klines?symbol=${currency}USDT&interval=1d&startTime=${startTime}&endTime=${endTime}`
+            console.log(url)
+            const response = await axios.get(url, binance_config);
             const data = response.data;
-
-            if (data.success && data.timeseries && data.rates) {
-              const rates = data.rates;
+            if (response.status == 200) {
               const currencyData = [];
-
-              for (const date in rates) {
-                if (rates.hasOwnProperty(date)) {
-                  const valueBuy = rates[date][currency] || 0;
-                  currencyData.push({
+                  for (const rate of data) {
+                const date =  moment(rate[0]).format('YYYY-MM-DD');
+                currencyData.push({
                     date: date,
-                    value_buy: valueBuy.toFixed(3),
-                  });
+                    value_buy: Number(rate[4]).toFixed(2) || 0,
+                    });
                 }
-              }
 
-              internationalCurrenciesData[currency] = currencyData;
-            } else {
-            console.error(`Failed to fetch data for ${currency}`);
-            }
-          }
-        } catch (error) {
-        console.error(`Error fetching data from ${currencies_url}: ${error.message}`);
-        }
+                internationalCurrenciesData[currency] = currencyData;
+             } else {
+               console.error(`Failed to fetch data for ${currency}`);
+             }
+           }
+         } catch (error) {
+           console.error(`Error fetching hsitorical data from Binance ${error.message}`);
+         }
 
-       try {
-          for (const crypto of cryptos) {
-           const response = await axios.get(`https://api.exchangerate.host/timeseries?start_date=${formattedPastDate}&end_date=${formattedPresentDate}&base=${crypto}&symbols=USD`);
-            const data = response.data;
-      
-            if (data.success && data.timeseries && data.rates) {
-             const rates = data.rates;
-              const cryptoData = [];
-
-             for (const date in rates) {
-                if (rates.hasOwnProperty(date)) {
-                  const valueBuy = rates[date]["USD"] || 0;
-                  cryptoData.push({
-                    date: date,
-                  value_buy: valueBuy.toFixed(3),
+      try {
+        for (const crypto of cryptos) {
+          let url = `https://api.binance.com/api/v3/klines?symbol=${crypto}USDT&interval=1d&startTime=${startTime}&endTime=${endTime}`
+          console.log(url)
+          const response = await axios.get(url, binance_config);
+          const data = response.data;
+          if (response.status == 200) {
+            const cryptoData = [];
+                for (const rate of data) {
+              const date =  moment(rate[0]).format('YYYY-MM-DD');
+              cryptoData.push({
+                  date: date,
+                  value_buy: Number(rate[4]).toFixed(2) || 0,
                   });
-                }
               }
 
               cryptoHistoricData[crypto] = cryptoData;
@@ -214,9 +212,8 @@ app.get('/historic/:days', async (request, response) => {
            }
          }
        } catch (error) {
-         console.error(`Error fetching data for ${crypto}: ${error.message}`);
+         console.error(`Error fetching hsitorical data from Binance ${error.message}`);
        }
-     }
 
       currency_data = {
         ...dolarHistoricData,
