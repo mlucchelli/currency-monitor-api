@@ -2,23 +2,41 @@ import express from 'express';
 import axios from 'axios';
 import { config } from 'dotenv';
 import moment from 'moment';
+import { fileURLToPath } from 'url';
+import { dirname, join } from 'path';
+import webPush from 'web-push';
+import bodyParser from 'body-parser';
+
 
 config();
 
 const PORT = 3000;
 const app = express();
 
+app.use(bodyParser.json());
+app.set('view engine', 'ejs');
+
+const currentFilePath = fileURLToPath(import.meta.url);
+const currentDir = dirname(currentFilePath);
+const publicPath = join(currentDir, 'notifications/public');
+
 let currency_data = {};
 const currencies = ['EUR', 'GBP']
 const cryptos = ['BTC', 'ETH']
 const CURRENCIES_ENABLED = true
-const binance_config = {
+const binanceConfig = {
   headers: {
     'X-MBX-APIKEY': process.env.BINANCE_API_KEY,
     'Accept': 'application/json'
   },
 };
 
+const wiseConfig = {
+  headers: {
+    'X-MBX-APIKEY': process.env.BINANCE_API_KEY,
+    'Accept': 'application/json'
+  },
+};
 
 const color_currencies = {
   "USD": "0,153,0",
@@ -30,6 +48,10 @@ const color_currencies = {
   "BTC": "247,147,26",
   "ETH": "178,102,255"
 }
+
+webPush.setVapidDetails("mailto:mario_no_soul@hotmail.com", process.env.PUBLIC_VAPID_KEY, process.env.PRIVATE_VAPID_KEY);
+
+app.use(express.static(publicPath));
 
 app.listen(PORT, () =>
   console.log(`The Currency Monitor is running on: http://localhost:${PORT}.`)
@@ -69,7 +91,7 @@ app.get('/latest', async (request, response) => {
         for (const currency of currencies) {
 
           let url = `https://api.binance.com/api/v3/ticker/price?symbol=${currency}USDT`
-          console.log(url, binance_config)
+          console.log(url, binanceConfig)
           const response = await axios.get(url);
           if (response.status == 200) {
             internationalCurrenciesData[currency] = {
@@ -88,7 +110,7 @@ app.get('/latest', async (request, response) => {
       try {
           for (const crypto of cryptos) {
             let url = `https://api.binance.com/api/v3/ticker/price?symbol=${crypto}USDT`
-            const response = await axios.get(url, binance_config);
+            const response = await axios.get(url, binanceConfig);
             if (response.status == 200) {
                 CryptoData[crypto] = {
                   "value_avg": Number(response.data.price).toFixed(2),
@@ -169,7 +191,7 @@ app.get('/historic/:days', async (request, response) => {
           for (const currency of currencies) {
             let url = `https://api.binance.com/api/v3/klines?symbol=${currency}USDT&interval=1d&startTime=${startTime}&endTime=${endTime}`
             console.log(url)
-            const response = await axios.get(url, binance_config);
+            const response = await axios.get(url, binanceConfig);
             const data = response.data;
             if (response.status == 200) {
               const currencyData = [];
@@ -194,7 +216,7 @@ app.get('/historic/:days', async (request, response) => {
         for (const crypto of cryptos) {
           let url = `https://api.binance.com/api/v3/klines?symbol=${crypto}USDT&interval=1d&startTime=${startTime}&endTime=${endTime}`
           console.log(url)
-          const response = await axios.get(url, binance_config);
+          const response = await axios.get(url, binanceConfig);
           const data = response.data;
           if (response.status == 200) {
             const cryptoData = [];
@@ -227,4 +249,16 @@ app.get('/historic/:days', async (request, response) => {
       response.status(500).send('Request Failed');
     }
   });
+
+// Create route for allow client to subscribe to push notification.
+app.post('/subscribe', (req, res) => {
+  const subscription = req.body;
+  res.status(201).json({});
+  const payload = JSON.stringify({ title: "IOT Notifications", body: "This is your first push notification" });
+  console.log(payload)
+  webPush.sendNotification(subscription, payload).catch(console.log);
+})
   
+app.get('/client.js', function(req, res) {
+  res.render(publicPath+'/client.ejs');
+});
