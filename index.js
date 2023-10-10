@@ -78,9 +78,9 @@ app.get('/latest', async (request, response) => {
     for (const dolarType in dolarTypes) {
       if (dolarJson.hasOwnProperty(dolarType)) {
         dolarData[dolarTypes[dolarType]] = {
-          "value_avg": dolarJson[dolarType].value_avg.toFixed(2),
-          "value_sell": dolarJson[dolarType].value_sell.toFixed(2),
-          "value_buy": dolarJson[dolarType].value_buy.toFixed(2),
+          "value_avg": parseInt(dolarJson[dolarType].value_avg),
+          //"value_sell": dolarJson[dolarType].value_sell.toFixed(2),
+          //"value_buy": dolarJson[dolarType].value_buy.toFixed(2),
           "color": color_currencies[dolarTypes[dolarType]]
         };
       }
