@@ -21,8 +21,9 @@ const currentDir = dirname(currentFilePath);
 const publicPath = join(currentDir, 'notifications/public');
 
 let currency_data = {};
-const currencies = ['EUR', 'GBP']
+const currencies = ['EUR']
 const cryptos = ['BTC', 'ETH']
+const symbols = ['QQQ', 'SPOT', 'NVDA']
 const CURRENCIES_ENABLED = true
 const binanceConfig = {
   headers: {
@@ -46,7 +47,10 @@ const color_currencies = {
   "JPY": "204,0,0",
   "CAD": "204,0,0",
   "BTC": "247,147,26",
-  "ETH": "178,102,255"
+  "ETH": "178,102,255",
+  "QQQ": "46,134,193",
+  "NVDA": "46,204,113 ",
+  "SPOT": "25,111,61 ",
 }
 
 webPush.setVapidDetails("mailto:mario_no_soul@hotmail.com", process.env.PUBLIC_VAPID_KEY, process.env.PRIVATE_VAPID_KEY);
@@ -74,6 +78,7 @@ app.get('/latest', async (request, response) => {
     const dolarData= {};
     const internationalCurrenciesData = {};
     const CryptoData = {};
+    const SymbolData = {};
 
     for (const dolarType in dolarTypes) {
       if (dolarJson.hasOwnProperty(dolarType)) {
@@ -124,12 +129,34 @@ app.get('/latest', async (request, response) => {
         catch (error) {
           console.error(`Error fetching data from Binance: ${error.message}`);
         }
+
+        try {
+          for (const symbol of symbols) {
+            let url = `https://api.marketdata.app/v1/stocks/quotes/${symbol}/?token=${process.env.MARKETDATA_API_KEY}`
+            console.log(url)
+            const response = await axios.get(url);
+            if (response.status == 200 || response.status == 203) {
+              const symbol = response.data.symbol[0];
+              const lastPrice = response.data.last[0];
+              SymbolData[symbol] = {
+                  "value_avg": Number(lastPrice).toFixed(2),
+                  "color": color_currencies[symbol]
+              };
+          } else {
+              console.error(`Failed to fetch data for ${symbol}`);
+            }
+          }
+        }
+        catch (error) {
+          console.error(`Error fetching data from Marketdata: ${error.message}`);
+        }
       }
 
     currency_data = {
       ...dolarData,
       ...internationalCurrenciesData,
-      ...CryptoData
+      ...CryptoData,
+      ...SymbolData
     };
 
     console.log(JSON.stringify(currency_data, null, 2));
@@ -148,11 +175,11 @@ app.get('/historic/:days', async (request, response) => {
       const formattedPresentDate = new Date(new Date().setDate(new Date().getDate())).toISOString().split('T')[0];
       const startTime = moment().subtract(days, 'days').unix() * 1000;
       const endTime = moment().unix() * 1000;
-
       const dolarHistoricResponse = await axios.get(`https://api.bluelytics.com.ar/v2/evolution.json?days=${days*2}`);
       const dolarHistoricoJson = dolarHistoricResponse.data;
       const internationalCurrenciesData = {};
       const cryptoHistoricData = {};
+      const SymbolHistoricData = {};
 
       const dolarHistoricData = {
         USDb: [],
@@ -237,10 +264,35 @@ app.get('/historic/:days', async (request, response) => {
          console.error(`Error fetching hsitorical data from Binance ${error.message}`);
        }
 
+      try {
+        for (const symbol of symbols) {
+          let url = `https://api.marketdata.app/v1/stocks/candles/D/${symbol}?from=${formattedPastDate}&to=${formattedPresentDate}&token=${process.env.MARKETDATA_API_KEY}`
+          console.log(url)
+          const response = await axios.get(url);
+          const data = response.data;
+          if (response.status === 200 || response.status == 203 ) {
+            const symbolData = [];
+            const dates = response.data.t.map(timestamp => moment(timestamp * 1000).format('YYYY-MM-DD'));
+            for (let i = 0; i < response.data.h.length; i++) {
+                symbolData.push({
+                    date: dates[i],
+                    value_buy: Number(response.data.h[i]).toFixed(2) || 0,
+                });
+            }
+            SymbolHistoricData[symbol] = symbolData;
+        } else {
+             console.error(`Failed to fetch data for ${currency}`);
+           }
+         }
+       } catch (error) {
+         console.error(`Error fetching hsitorical data from Marketdata ${error.message}`);
+       }
+
       currency_data = {
         ...dolarHistoricData,
         ...internationalCurrenciesData,
-        ...cryptoHistoricData
+        ...cryptoHistoricData,
+        ...SymbolHistoricData
       };
 
       response.send(currency_data);
