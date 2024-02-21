@@ -6,6 +6,7 @@ import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 import webPush from 'web-push';
 import bodyParser from 'body-parser';
+import compression from 'compression';
 
 
 config();
@@ -14,6 +15,7 @@ const PORT = 3000;
 const app = express();
 
 app.use(bodyParser.json());
+app.use(compression());
 app.set('view engine', 'ejs');
 
 const currentFilePath = fileURLToPath(import.meta.url);
