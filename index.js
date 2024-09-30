@@ -25,7 +25,7 @@ const publicPath = join(currentDir, 'notifications/public');
 let currency_data = {};
 const currencies = ['EUR']
 const cryptos = ['BTC', 'ETH']
-const symbols = ['QQQ', 'SPOT', 'NVDA']
+const symbols = ['QQQ', 'SPOT', 'NVDA', 'SPY']
 const CURRENCIES_ENABLED = true
 const binanceConfig = {
   headers: {
@@ -53,6 +53,7 @@ const color_currencies = {
   "QQQ": "46,134,193",
   "NVDA": "46,204,113 ",
   "SPOT": "25,111,61 ",
+  "SPY": "255,0,127 ",
 }
 
 webPush.setVapidDetails("mailto:mario_no_soul@hotmail.com", process.env.PUBLIC_VAPID_KEY, process.env.PRIVATE_VAPID_KEY);
